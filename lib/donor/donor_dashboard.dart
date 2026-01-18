@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'donate_money_page.dart';
+import '../services/api_service.dart';
 
 const Color primaryColor = Color(0xFF1E88E5);
 const double headerHeight = 200;
@@ -43,27 +44,131 @@ class _DonorDashboardState extends State<DonorDashboard> {
     "Camp Gamma",
   ];
 
-  // ---------- DEFAULT CAMP REQUESTS ----------
-  final List<Map<String, dynamic>> requests = [
-    {
-      "item": "Rice",
-      "category": "Food",
-      "priority": "Low",
-      "required": 500,
-      "current": 200,
-      "unit": "kg",
-      "updated": "10 Jan 2025, 6:23 PM",
-    },
-    {
-      "item": "Drinking Water",
-      "category": "Water",
-      "priority": "Medium",
-      "required": 2000,
-      "current": 1000,
-      "unit": "liters",
-      "updated": "10 Jan 2025, 6:23 PM",
-    },
-  ];
+  bool isLoading = true;
+  List<Map<String, dynamic>> requests = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchRequests();
+  }
+
+  Future<void> fetchRequests() async {
+    try {
+      final data = await ApiService.getCampRequests();
+      setState(() {
+        requests = data.map((r) {
+          final required = r["requiredQty"] ?? 0;
+          final remaining = r["remainingQty"] ?? 0;
+          final current = required - remaining;
+          
+          // Format date
+          String updated = "Recently";
+          if (r["updatedAt"] != null) {
+             final date = DateTime.parse(r["updatedAt"]);
+             updated = "${date.day}/${date.month}/${date.year}"; 
+          }
+
+          return {
+            "id": r["_id"], // Keep ID for donation
+            "item": r["itemName"] ?? "Unknown",
+            "category": r["category"] ?? "General",
+            "priority": r["priority"] ?? "Medium",
+            "required": required,
+            "current": current,
+            "unit": r["unit"] ?? "units",
+            "updated": updated,
+            "campId": r["campId"] // Store campId for filtering if needed
+          };
+        }).toList().cast<Map<String, dynamic>>();
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error fetching requests: $e")),
+      );
+    }
+  }
+
+  void _showDonateDialog(Map<String, dynamic> request) {
+    final TextEditingController qtyController = TextEditingController();
+    final int remaining = request["required"] - request["current"];
+    final String unit = request["unit"];
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Donate ${request['item']}"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Required: $remaining $unit"),
+              const SizedBox(height: 10),
+              TextField(
+                controller: qtyController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: "Quantity to Donate",
+                  suffixText: unit,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final String input = qtyController.text.trim();
+                if (input.isEmpty) return;
+
+                final int? qty = int.tryParse(input);
+                if (qty == null || qty <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Please enter a valid quantity")),
+                  );
+                  return;
+                }
+
+                if (qty > remaining) {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Quantity exceeds requirement")),
+                  );
+                  return;
+                }
+
+                Navigator.pop(context); // Close dialog
+
+                // Call API
+                try {
+                  await ApiService.donateItem(request["id"], qty);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Donation successful! Thank you.")),
+                  );
+                  fetchRequests(); // Refresh list
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error: $e")),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+              child: const Text("Donate", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ---------- DEFAULT CAMPS ----------
 
   // ---------------- HEADER ----------------
   Widget buildHeader() {
@@ -168,18 +273,38 @@ class _DonorDashboardState extends State<DonorDashboard> {
             ],
           ),
 
+
           const SizedBox(height: 12),
 
-          Text(
-            "Remaining: $remaining ${r["unit"]}",
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-
-          const SizedBox(height: 6),
-
-          Text(
-            "Last updated: ${r["updated"]}",
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Remaining: $remaining ${r["unit"]}",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Last updated: ${r["updated"]}",
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
+              ),
+              ElevatedButton(
+                onPressed: () => _showDonateDialog(r),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
+                child: const Text("Donate", style: TextStyle(color: Colors.white)),
+              ),
+            ],
           ),
         ],
       ),
@@ -239,7 +364,15 @@ class _DonorDashboardState extends State<DonorDashboard> {
 
                   const SizedBox(height: 16),
 
-                  ...requests.map(requestCard).toList(),
+                  if (isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (requests.isEmpty)
+                    const Center(child: Padding(
+                      padding: EdgeInsets.all(20.0),
+                      child: Text("No inventory requests found."),
+                    ))
+                  else
+                    ...requests.map(requestCard).toList(),
 
                   const SizedBox(height: 30),
 

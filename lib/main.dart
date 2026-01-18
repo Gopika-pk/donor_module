@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'donor/donor_dashboard.dart';
+import 'screens/role_selection_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const DonorDashboard(), // starting screen
+      home: const RoleSelectionScreen(),
     );
   }
 }

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl = "http://192.168.150.38:5000";
+  static const String baseUrl = "http://10.49.2.38:5000";
 
   // ---------------- GET CAMP REQUESTS ----------------
   static Future<List<dynamic>> getCampRequests() async {
