@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../services/camp_session.dart';
 
 class DonationsScreen extends StatefulWidget {
   const DonationsScreen({super.key});
@@ -12,7 +13,7 @@ class DonationsScreen extends StatefulWidget {
 class _DonationsScreenState extends State<DonationsScreen> {
   // Use local network IP
   final String _baseUrl = "http://10.49.2.38:5000/camp-request/donations";
-  final String _campId = "CAMP001"; // Hardcoded for now
+  String? _campId; // Load from session
   
   List<dynamic> donations = [];
   bool isLoading = true;
@@ -20,26 +21,112 @@ class _DonationsScreenState extends State<DonationsScreen> {
   @override
   void initState() {
     super.initState();
+    _loadCampIdAndFetch();
+  }
+
+  Future<void> _loadCampIdAndFetch() async {
+    final campId = await CampSession.getCampId();
+    
+    if (campId == null || campId.isEmpty) {
+      if (mounted) {
+        setState(() => isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error: Camp ID not found. Please login again.")),
+        );
+      }
+      return;
+    }
+    
+    setState(() {
+      _campId = campId;
+    });
+    
     _fetchDonations();
   }
 
   Future<void> _fetchDonations() async {
+    if (_campId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Camp ID not found. Please log in again.")),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
     try {
       final response = await http.get(Uri.parse("$_baseUrl/$_campId"));
 
       if (response.statusCode == 200) {
-        if (mounted) {
-          setState(() {
-            donations = jsonDecode(response.body);
-            isLoading = false;
-          });
-        }
+        final List data = jsonDecode(response.body);
+        setState(() {
+          donations = data.map((d) => d as Map<String, dynamic>).toList();
+          isLoading = false;
+        });
       } else {
         throw Exception("Failed to load donations");
       }
     } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
       if (mounted) {
-        setState(() => isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
+    }
+  }
+
+  Future<void> _markAsReceived(String donationId) async {
+    try {
+      final response = await http.put(
+        Uri.parse("$_baseUrl/$donationId/receive"),
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (response.statusCode == 200) {
+        _fetchDonations(); // Refresh list
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("✅ Donation marked as received!")),
+          );
+        }
+      } else {
+        throw Exception("Failed to mark as received");
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
+    }
+  }
+
+  Future<void> _markAsNotReceived(String donationId) async {
+    try {
+      final response = await http.put(
+        Uri.parse("http://10.49.2.38:5000/camp-request/donations/$donationId/not-receive"),
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (response.statusCode == 200) {
+        _fetchDonations(); // Refresh list
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("❌ Donation marked as not received")),
+          );
+        }
+      } else {
+        throw Exception("Failed to mark as not received");
+      }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error: $e")),
         );
@@ -57,8 +144,10 @@ class _DonationsScreenState extends State<DonationsScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-               setState(() => isLoading = true);
-               _fetchDonations();
+              if (_campId != null) {
+                setState(() => isLoading = true);
+                _fetchDonations();
+              }
             },
           )
         ],
@@ -74,10 +163,11 @@ class _DonationsScreenState extends State<DonationsScreen> {
                 final d = donations[index];
                 return donationCard(
                   context,
+                  donationId: d["_id"] ?? "",
                   donor: d["donorName"] ?? "Anonymous",
                   item: d["itemName"] ?? "Unknown",
                   promisedQty: "${d["quantity"]} ${d["unit"] ?? ""}",
-                  status: d["status"] ?? "Received",
+                  status: d["status"] ?? "Pending",
                 );
               },
             ),
@@ -86,11 +176,15 @@ class _DonationsScreenState extends State<DonationsScreen> {
 
   Widget donationCard(
       BuildContext context, {
+        required String donationId,
         required String donor,
         required String item,
         required String promisedQty,
         required String status,
       }) {
+    final isPending = status == "Pending";
+    final isReceived = status == "Received";
+    final isNotReceived = status == "Not Received";
   
     return Card(
       shape: RoundedRectangleBorder(
@@ -112,21 +206,62 @@ class _DonationsScreenState extends State<DonationsScreen> {
             const SizedBox(height: 6),
             Text("Item: $item"),
             Text("Quantity: $promisedQty"),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
 
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Chip(
-                  label: Text(status),
-                  backgroundColor: Colors.green.shade100,
-                  labelStyle: const TextStyle(
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
-                  ),
+            // Status chip
+            if (!isPending)
+              Chip(
+                label: Text(status),
+                backgroundColor: isReceived 
+                  ? Colors.green.shade100 
+                  : Colors.red.shade100,
+                labelStyle: TextStyle(
+                  color: isReceived ? Colors.green : Colors.red,
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            ),
+              ),
+
+            // Action buttons for pending donations
+            if (isPending) ...[
+              const Text(
+                "Mark donation status:",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _markAsReceived(donationId),
+                      icon: const Icon(Icons.check_circle, size: 18),
+                      label: const Text("Received"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _markAsNotReceived(donationId),
+                      icon: const Icon(Icons.cancel, size: 18),
+                      label: const Text("Not Received"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

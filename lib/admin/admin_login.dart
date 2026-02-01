@@ -1,26 +1,26 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../services/camp_session.dart';
-import 'camp_dashboard.dart';
+import 'services/admin_session.dart';
+import 'admin_dashboard.dart';
 
-class CampManagerLogin extends StatefulWidget {
-  const CampManagerLogin({super.key});
+class AdminLogin extends StatefulWidget {
+  const AdminLogin({super.key});
 
   @override
-  State<CampManagerLogin> createState() => _CampManagerLoginState();
+  State<AdminLogin> createState() => _AdminLoginState();
 }
 
-class _CampManagerLoginState extends State<CampManagerLogin> {
-  final TextEditingController _emailController = TextEditingController();
+class _AdminLoginState extends State<AdminLogin> {
+  final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
 
   Future<void> _login() async {
-    final email = _emailController.text.trim();
+    final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    if (username.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill in all fields")),
       );
@@ -33,10 +33,10 @@ class _CampManagerLoginState extends State<CampManagerLogin> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://10.49.2.38:5000/api/camp-manager/login"),
+        Uri.parse("http://10.49.2.38:5000/api/admin/login"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "email": email,
+          "username": username,
           "password": password,
         }),
       );
@@ -46,19 +46,13 @@ class _CampManagerLoginState extends State<CampManagerLogin> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         
-        // Save session
-        await CampSession.saveSession(
-          campId: data["campId"],
-          campName: data["campName"],
-          managerName: data["managerName"],
-          email: data["email"],
-          location: data["location"] ?? "Unknown",
-        );
+        // Save admin session
+        await AdminSession.saveSession(data["username"]);
 
-        // Navigate to dashboard
+        // Navigate to admin dashboard
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const CampDashboard()),
+          MaterialPageRoute(builder: (_) => const AdminDashboard()),
         );
       } else {
         final error = jsonDecode(response.body);
@@ -83,7 +77,7 @@ class _CampManagerLoginState extends State<CampManagerLogin> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -98,20 +92,27 @@ class _CampManagerLoginState extends State<CampManagerLogin> {
               height: 220,
               width: double.infinity,
               decoration: const BoxDecoration(
-                color: Color(0xFF1E88E5),
+                color: Colors.red,
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(40),
                   bottomRight: Radius.circular(40),
                 ),
               ),
               child: const Center(
-                child: Text(
-                  "Camp Manager Login",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.admin_panel_settings, color: Colors.white, size: 60),
+                    SizedBox(height: 10),
+                    Text(
+                      "Admin Login",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -123,11 +124,10 @@ class _CampManagerLoginState extends State<CampManagerLogin> {
               child: Column(
                 children: [
                   TextField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
+                    controller: _usernameController,
                     decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.email),
-                      labelText: "Email",
+                      prefixIcon: Icon(Icons.person),
+                      labelText: "Username",
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -149,7 +149,7 @@ class _CampManagerLoginState extends State<CampManagerLogin> {
                       onPressed: _isLoading ? null : _login,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: const Color(0xFF1E88E5),
+                        backgroundColor: Colors.red,
                       ),
                       child: _isLoading
                           ? const SizedBox(
@@ -168,11 +168,9 @@ class _CampManagerLoginState extends State<CampManagerLogin> {
                   ),
 
                   const SizedBox(height: 20),
-
                   const Text(
-                    "Contact admin to get your credentials",
+                    "Default credentials: admin / admin123",
                     style: TextStyle(fontSize: 12, color: Colors.grey),
-                    textAlign: TextAlign.center,
                   ),
                 ],
               ),

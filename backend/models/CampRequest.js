@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const campRequestSchema = new mongoose.Schema(
   {
     campId: String,
+    campName: String,
     itemName: String,
     requiredQty: Number,
     remainingQty: Number,

@@ -35,29 +35,50 @@ class DonorDashboard extends StatefulWidget {
 }
 
 class _DonorDashboardState extends State<DonorDashboard> {
-  String selectedCamp = "Camp Alpha";
-
-  // ---------- DEFAULT CAMPS ----------
-  final List<String> camps = [
-    "Camp Alpha",
-    "Camp Beta",
-    "Camp Gamma",
-  ];
-
-  bool isLoading = true;
-  List<Map<String, dynamic>> requests = [];
+  String? selectedCampId; // null = "All Camps"
+  
+  List<Map<String, dynamic>> camps = [];
+  List<Map<String, dynamic>> allRequests = [];
+  List<Map<String, dynamic>> filteredRequests = [];
+  
+  bool isLoadingCamps = true;
+  bool isLoadingRequests = true;
 
   @override
   void initState() {
     super.initState();
+    fetchCamps();
     fetchRequests();
+  }
+
+  Future<void> fetchCamps() async {
+    try {
+      final data = await ApiService.getCamps();
+      setState(() {
+        camps = data.map((c) => {
+          "campId": c["campId"],
+          "campName": c["campName"] ?? "Unknown",
+          "location": c["location"] ?? "",
+        }).toList().cast<Map<String, dynamic>>();
+        isLoadingCamps = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoadingCamps = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error fetching camps: $e")),
+        );
+      }
+    }
   }
 
   Future<void> fetchRequests() async {
     try {
       final data = await ApiService.getCampRequests();
       setState(() {
-        requests = data.map((r) {
+        allRequests = data.map((r) {
           final required = r["requiredQty"] ?? 0;
           final remaining = r["remainingQty"] ?? 0;
           final current = required - remaining;
@@ -78,19 +99,42 @@ class _DonorDashboardState extends State<DonorDashboard> {
             "current": current,
             "unit": r["unit"] ?? "units",
             "updated": updated,
-            "campId": r["campId"] // Store campId for filtering if needed
+            "campId": r["campId"], // Store campId for filtering
+            "campName": r["campName"] ?? "Unknown Camp",
+            "location": r["location"] ?? "Unknown"
           };
         }).toList().cast<Map<String, dynamic>>();
-        isLoading = false;
+        
+        filterRequests(); // Apply initial filter
+        isLoadingRequests = false;
       });
     } catch (e) {
       setState(() {
-        isLoading = false;
+        isLoadingRequests = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error fetching requests: $e")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error fetching requests: $e")),
+        );
+      }
     }
+  }
+
+  void filterRequests() {
+    setState(() {
+      if (selectedCampId == null) {
+        // Show all requests from valid camps only
+        final validCampIds = camps.map((c) => c["campId"]).toSet();
+        filteredRequests = allRequests
+            .where((r) => validCampIds.contains(r["campId"]))
+            .toList();
+      } else {
+        // Show requests for selected camp only
+        filteredRequests = allRequests
+            .where((r) => r["campId"] == selectedCampId)
+            .toList();
+      }
+    });
   }
 
   void _showDonateDialog(Map<String, dynamic> request) {
@@ -263,6 +307,26 @@ class _DonorDashboardState extends State<DonorDashboard> {
             ],
           ),
 
+          const SizedBox(height: 8),
+
+          // Camp Name with Location
+          Row(
+            children: [
+              const Icon(Icons.location_on, size: 16, color: Colors.grey),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  "${r['campName']} - ${r['location']}",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
           const SizedBox(height: 10),
 
           Row(
@@ -329,33 +393,40 @@ class _DonorDashboardState extends State<DonorDashboard> {
                   const SizedBox(height: 20),
 
                   // CAMP DROPDOWN
-                  DropdownButtonFormField<String>(
-                    value: selectedCamp,
-                    decoration: InputDecoration(
-                      hintText: "Choose a Camp",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  if (isLoadingCamps)
+                    const Center(child: CircularProgressIndicator())
+                  else
+                    DropdownButtonFormField<String?>(
+                      value: selectedCampId,
+                      decoration: InputDecoration(
+                        labelText: "Filter by Camp",
+                        prefixIcon: const Icon(Icons.filter_list),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text("All Camps"),
+                        ),
+                        ...camps.map((camp) => DropdownMenuItem<String?>(
+                          value: camp["campId"],
+                          child: Text("${camp['campName']} - ${camp['location']}"),
+                        )).toList(),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          selectedCampId = value;
+                          filterRequests();
+                        });
+                      },
                     ),
-                    items: camps
-                        .map(
-                          (camp) => DropdownMenuItem(
-                        value: camp,
-                        child: Text(camp),
-                      ),
-                    )
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        selectedCamp = value!;
-                      });
-                    },
-                  ),
 
                   const SizedBox(height: 24),
 
                   const Text(
-                    "Current Inventory",
+                    "Current Inventory Requests",
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -364,39 +435,22 @@ class _DonorDashboardState extends State<DonorDashboard> {
 
                   const SizedBox(height: 16),
 
-                  if (isLoading)
+                  if (isLoadingRequests)
                     const Center(child: CircularProgressIndicator())
-                  else if (requests.isEmpty)
-                    const Center(child: Padding(
-                      padding: EdgeInsets.all(20.0),
-                      child: Text("No inventory requests found."),
+                  else if (filteredRequests.isEmpty)
+                    Center(child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Text(
+                        selectedCampId == null 
+                          ? "No inventory requests found."
+                          : "No requests for this camp.",
+                        style: const TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
                     ))
                   else
-                    ...requests.map(requestCard).toList(),
+                    ...filteredRequests.map(requestCard).toList(),
 
                   const SizedBox(height: 30),
-
-                  // DONATE INVENTORY
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text(
-                        "Donate Inventory",
-                        style:
-                        TextStyle(fontSize: 16, color: Colors.white),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
 
                   // DONATE MONEY
                   SizedBox(

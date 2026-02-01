@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../services/camp_session.dart';
 
 class CampInventoryScreen extends StatefulWidget {
   const CampInventoryScreen({super.key});
@@ -12,7 +13,7 @@ class CampInventoryScreen extends StatefulWidget {
 class _CampInventoryScreenState extends State<CampInventoryScreen> {
   // Use local network IP
   final String _baseUrl = "http://10.49.2.38:5000/inventory";
-  final String _campId = "CAMP001"; // Hardcoded for now
+  String? _campId; // Load from session
 
   List<dynamic> inventory = [];
   bool isLoading = true;
@@ -20,10 +21,32 @@ class _CampInventoryScreenState extends State<CampInventoryScreen> {
   @override
   void initState() {
     super.initState();
+    _loadCampIdAndFetch();
+  }
+
+  Future<void> _loadCampIdAndFetch() async {
+    final campId = await CampSession.getCampId();
+    
+    if (campId == null || campId.isEmpty) {
+      if (mounted) {
+        setState(() => isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error: Camp ID not found. Please login again.")),
+        );
+      }
+      return;
+    }
+    
+    setState(() {
+      _campId = campId;
+    });
+    
     _fetchInventory();
   }
 
   Future<void> _fetchInventory() async {
+    if (_campId == null) return;
+    
     try {
       final response = await http.get(Uri.parse("$_baseUrl/$_campId"));
       if (response.statusCode == 200) {
@@ -84,8 +107,10 @@ class _CampInventoryScreenState extends State<CampInventoryScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              setState(() => isLoading = true);
-              _fetchInventory();
+              if (_campId != null) {
+                setState(() => isLoading = true);
+                _fetchInventory();
+              }
             },
           ),
         ],

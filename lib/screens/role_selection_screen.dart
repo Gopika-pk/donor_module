@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../donor/donor_dashboard.dart'; // Adjust path if needed
-import '../camp_manager/screens/camp_manager_login.dart'; // Adjust path if needed
+import '../donor/donor_dashboard.dart';
+import '../camp_manager/screens/camp_manager_login.dart';
+import '../admin/admin_login.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key});
@@ -43,6 +44,20 @@ class RoleSelectionScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                         builder: (context) => const CampManagerLogin()),
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              _buildRoleButton(
+                context,
+                title: "Login as Admin",
+                icon: Icons.shield,
+                color: Colors.red,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const AdminLogin()),
                   );
                 },
               ),

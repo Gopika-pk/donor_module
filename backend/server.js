@@ -19,9 +19,14 @@ app.use("/api/camp", require("./routes/campRoutes")); // Existing donor camp rou
 app.use("/api/donor", require("./routes/donorRoutes"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 
-// New Camp Manager Routes
+// Camp Manager Routes
+app.use("/api/camp-manager", require("./routes/campManagerAuthRoutes"));
 app.use("/inventory", require("./routes/inventoryRoutes"));
 app.use("/camp-request", require("./routes/campManagerRoutes"));
+app.use("/inmates", require("./routes/inmateRoutes"));
+
+// Admin Routes
+app.use("/api/admin", require("./routes/adminRoutes"));
 
 const PORT = 5000;
 app.listen(PORT, () => {

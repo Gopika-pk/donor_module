@@ -40,15 +40,20 @@ router.get("/:campId", async (req, res) => {
     });
 
     // Process Donations (Received Amount & Donors)
+    // Only count donations with status "Received"
     donations.forEach(don => {
       ensureItem(don.itemName);
-      itemMap[don.itemName].received += don.quantity || 0;
-      // Add donor info
-      itemMap[don.itemName].donors.push({
-        name: don.donorName || "Anonymous",
-        quantity: don.quantity,
-        unit: don.unit
-      });
+
+      // Only add to received if status is "Received"
+      if (don.status === "Received") {
+        itemMap[don.itemName].received += don.quantity || 0;
+        // Add donor info only for received donations
+        itemMap[don.itemName].donors.push({
+          name: don.donorName || "Anonymous",
+          quantity: don.quantity,
+          unit: don.unit
+        });
+      }
     });
 
     // Process Inventory (Current Stock)
@@ -72,6 +77,7 @@ router.put("/update", async (req, res) => {
   const { campId, itemName, quantity } = req.body;
 
   try {
+    // 1. Update Inventory collection
     let item = await Inventory.findOne({ campId, itemName });
 
     if (item) {
@@ -86,8 +92,31 @@ router.put("/update", async (req, res) => {
       });
     }
 
+    // 2. Sync with CampRequest - update remainingQty based on manual inventory
+    const CampRequest = require("../models/CampRequest");
+    const request = await CampRequest.findOne({
+      campId,
+      itemName,
+      status: { $in: ["Pending", "open", "Open"] }
+    });
+
+    if (request) {
+      // Calculate remaining based on current stock
+      const remaining = Math.max(0, request.requiredQty - quantity);
+      request.remainingQty = remaining;
+
+      // Mark as fulfilled if stock meets or exceeds requirement
+      if (quantity >= request.requiredQty) {
+        request.status = "Fulfilled";
+      }
+
+      await request.save();
+      console.log(`✅ Synced inventory update: ${itemName} - remainingQty: ${remaining}`);
+    }
+
     res.json({ message: "Inventory updated successfully" });
   } catch (error) {
+    console.error("Inventory update error:", error);
     res.status(500).json({ message: "Inventory update failed" });
   }
 });

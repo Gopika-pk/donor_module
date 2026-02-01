@@ -2,16 +2,55 @@ import 'package:flutter/material.dart';
 import 'create_request_screen.dart';
 import 'camp_inventory_screen.dart';
 import 'donations_screen.dart';
+import 'inmates_screen.dart';
+import '../services/camp_session.dart';
+import 'camp_manager_login.dart';
 
-class CampDashboard extends StatelessWidget {
+class CampDashboard extends StatefulWidget {
   const CampDashboard({super.key});
+
+  @override
+  State<CampDashboard> createState() => _CampDashboardState();
+}
+
+class _CampDashboardState extends State<CampDashboard> {
+  String _campName = "Loading...";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCampInfo();
+  }
+
+  Future<void> _loadCampInfo() async {
+    final campName = await CampSession.getCampName();
+    setState(() {
+      _campName = campName ?? "Camp Manager";
+    });
+  }
+
+  Future<void> _logout() async {
+    await CampSession.clearSession();
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const CampManagerLogin()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Camp Manager"),
+        title: Text(_campName),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+            tooltip: "Logout",
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -47,6 +86,17 @@ class CampDashboard extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (_) => const DonationsScreen(),
+                ),
+              ),
+            ),
+            dashboardCard(
+              context,
+              icon: Icons.people,
+              title: "Inmates Registration",
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const InmatesScreen(),
                 ),
               ),
             ),

@@ -13,39 +13,24 @@ router.post("/donate-item", async (req, res) => {
       return res.status(400).json({ message: "Invalid or fulfilled request" });
     }
 
-    // 1. Deduct from Request
+    // Validate donation amount
+    if (donateQty > request.remainingQty) {
+      return res.status(400).json({
+        message: `Cannot donate more than remaining quantity (${request.remainingQty})`
+      });
+    }
+
+    // 1. Deduct from Request (optimistically - shows donor it's being processed)
     request.remainingQty -= donateQty;
 
     if (request.remainingQty <= 0) {
       request.remainingQty = 0;
-      request.status = "fulfilled";
     }
 
     await request.save();
 
-    // 2. Add to Camp Inventory
-    // We assume the campId, itemName, and unit come from the request
-    const Inventory = require("../models/Inventory");
-
-    let inventoryItem = await Inventory.findOne({
-      campId: request.campId,
-      itemName: request.itemName
-    });
-
-    if (inventoryItem) {
-      inventoryItem.quantity += donateQty;
-      inventoryItem.lastUpdated = new Date();
-      await inventoryItem.save();
-    } else {
-      await Inventory.create({
-        campId: request.campId,
-        itemName: request.itemName,
-        quantity: donateQty,
-        lastUpdated: new Date()
-      });
-    }
-
-    // 3. Create Donation Record
+    // 2. Create Donation Record as PENDING
+    // Camp manager will mark as Received/Not Received
     const DonationRecord = require("../models/DonationRecord");
 
     await DonationRecord.create({
@@ -53,12 +38,15 @@ router.post("/donate-item", async (req, res) => {
       donorName: "Ananya", // Hardcoded for demo, or pass from req.body
       itemName: request.itemName,
       quantity: donateQty,
-      unit: request.unit || "units", // Fallback if unit missing
-      status: "Received"
+      unit: request.unit || "units",
+      status: "Pending" // Changed from "Received"
     });
 
+    // NOTE: Inventory is NOT updated here anymore
+    // It will be updated when camp manager clicks "Received" button
+
     res.json({
-      message: "Item donated successfully and inventory updated",
+      message: "Donation recorded successfully. Awaiting camp confirmation.",
       remaining: request.remainingQty
     });
 

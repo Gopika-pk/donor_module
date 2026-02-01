@@ -6,8 +6,9 @@ const donationRecordSchema = new mongoose.Schema({
     itemName: String,
     quantity: Number,
     unit: String, // e.g., kg, liters
-    status: { type: String, default: "Received" },
+    status: { type: String, default: "Pending" }, // Changed from "Received"
     donatedAt: { type: Date, default: Date.now },
+    receivedAt: { type: Date }, // NEW: Track when physically received
 });
 
 module.exports = mongoose.models.DonationRecord || mongoose.model("DonationRecord", donationRecordSchema);

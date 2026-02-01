@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../services/camp_session.dart';
 
 class CreateRequestScreen extends StatefulWidget {
   const CreateRequestScreen({super.key});
@@ -33,22 +34,33 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
       return;
     }
 
+    // Get camp info from session
+    final campId = await CampSession.getCampId();
+    final campName = await CampSession.getCampName();
+
+    if (campId == null || campName == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Session expired. Please login again.")),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Use local network IP instead of localhost for physical devices/emulators
       final url = Uri.parse("http://10.49.2.38:5000/camp-request");
 
       final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "campId": "CAMP001", // TODO: Replace with actual logged-in camp ID
+          "campId": campId,
+          "campName": campName,
           "itemName": itemName,
           "requiredQty": int.parse(qtyStr),
-          "remainingQty": int.parse(qtyStr), // Initially same as required
+          "remainingQty": int.parse(qtyStr),
           "status": "Pending",
           "unit": unit,
           "category": _selectedCategory,
