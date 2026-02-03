@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'services/admin_session.dart';
 import 'admin_dashboard.dart';
+import '../config/api_config.dart';
 
 class AdminLogin extends StatefulWidget {
   const AdminLogin({super.key});
@@ -33,7 +34,7 @@ class _AdminLoginState extends State<AdminLogin> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://10.49.2.38:5000/api/admin/login"),
+        Uri.parse(ApiConfig.adminLogin),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "username": username,

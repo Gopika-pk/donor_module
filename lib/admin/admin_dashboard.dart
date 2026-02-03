@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'services/admin_session.dart';
 import 'screens/admin_create_camp.dart';
+import 'screens/admin_disasters_list.dart';
 import '../screens/role_selection_screen.dart';
+import '../config/api_config.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -29,7 +31,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
     try {
       final response = await http.get(
-        Uri.parse("http://10.49.2.38:5000/api/admin/camps"),
+        Uri.parse(ApiConfig.adminCamps),
       );
 
       if (response.statusCode == 200) {
@@ -195,47 +197,135 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadCamps,
-              child: camps.isEmpty
-                  ? const Center(
-                      child: Text("No camps registered yet"),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: camps.length,
-                      itemBuilder: (context, index) {
-                        final camp = camps[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: Colors.red,
-                              child: Text(
-                                camp["campId"].toString().substring(4),
-                                style: const TextStyle(color: Colors.white),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Disaster Management Card
+                    Container(
+                      margin: const EdgeInsets.all(16),
+                      child: Card(
+                        elevation: 4,
+                        color: Colors.red.shade50,
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AdminDisastersList(),
                               ),
-                            ),
-                            title: Text(
-                              camp["campName"] ?? "Unknown",
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
                               children: [
-                                Text("Manager: ${camp['managerName']}"),
-                                Text("Email: ${camp['email']}"),
-                                Text("Location: ${camp['location'] ?? 'N/A'}"),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.warning_amber,
+                                    color: Colors.white,
+                                    size: 32,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Disaster Management',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(height: 4),
+                                      Text(
+                                        'Register and manage disasters',
+                                        style: TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.arrow_forward_ios, size: 20),
                               ],
                             ),
-                            isThreeLine: true,
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                            onTap: () {
-                              // Show full credentials dialog
-                              _showCredentialsDialog(camp);
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    // Camps Section Header
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Registered Camps',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Camps List
+                    camps.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Text('No camps registered yet'),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: camps.length,
+                            itemBuilder: (context, index) {
+                              final camp = camps[index];
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: Colors.red,
+                                    child: Text(
+                                      camp["campId"].toString().substring(4),
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    camp["campName"] ?? "Unknown",
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text("Manager: ${camp['managerName']}"),
+                                      Text("Email: ${camp['email']}"),
+                                      Text("Location: ${camp['location'] ?? 'N/A'}"),
+                                    ],
+                                  ),
+                                  isThreeLine: true,
+                                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                                  onTap: () {
+                                    // Show full credentials dialog
+                                    _showCredentialsDialog(camp);
+                                  },
+                                ),
+                              );
                             },
                           ),
-                        );
-                      },
-                    ),
+                  ],
+                ),
+              ),
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const CampManager = require("../models/CampManager");
+const Disaster = require("../models/Disaster");
 const { sendCampCredentials } = require("../services/emailService");
 
 // Hardcoded admin credentials (for simplicity)
@@ -134,6 +135,177 @@ router.delete("/camp/:campId", async (req, res) => {
     } catch (error) {
         console.error("Delete camp error:", error);
         res.status(500).json({ message: "Failed to delete camp" });
+    }
+});
+
+// Register new disaster (admin only)
+router.post("/register-disaster", async (req, res) => {
+    try {
+        const {
+            disasterName,
+            location,
+            dateOccurred,
+            disasterType,
+            severity,
+            description,
+            affectedPopulation,
+        } = req.body;
+
+        // Validate required fields
+        if (!disasterName || !location || !dateOccurred || !disasterType || !severity) {
+            return res.status(400).json({
+                message: "Missing required fields: disasterName, location, dateOccurred, disasterType, severity"
+            });
+        }
+
+        // Generate unique disasterId
+        const lastDisaster = await Disaster.findOne().sort({ disasterId: -1 }).limit(1);
+        let nextId = 1;
+        if (lastDisaster && lastDisaster.disasterId) {
+            const lastNumber = parseInt(lastDisaster.disasterId.replace('DIS', ''));
+            nextId = lastNumber + 1;
+        }
+        const disasterId = `DIS${String(nextId).padStart(3, "0")}`;
+
+        // Create new disaster record
+        const disaster = await Disaster.create({
+            disasterId,
+            disasterName,
+            location,
+            dateOccurred: new Date(dateOccurred),
+            disasterType,
+            severity,
+            description: description || "",
+            affectedPopulation: affectedPopulation || 0,
+            status: "Active",
+        });
+
+        res.status(201).json({
+            message: "Disaster registered successfully",
+            disaster: {
+                disasterId: disaster.disasterId,
+                disasterName: disaster.disasterName,
+                location: disaster.location,
+                dateOccurred: disaster.dateOccurred,
+                disasterType: disaster.disasterType,
+                severity: disaster.severity,
+                status: disaster.status,
+            },
+        });
+    } catch (error) {
+        console.error("Register disaster error:", error);
+        res.status(500).json({ message: "Failed to register disaster", error: error.message });
+    }
+});
+
+// Get all disasters (admin only)
+router.get("/disasters", async (req, res) => {
+    try {
+        const disasters = await Disaster.find().sort({ dateOccurred: -1 });
+
+        const disasterList = disasters.map(disaster => ({
+            disasterId: disaster.disasterId,
+            disasterName: disaster.disasterName,
+            location: disaster.location,
+            dateOccurred: disaster.dateOccurred,
+            disasterType: disaster.disasterType,
+            severity: disaster.severity,
+            description: disaster.description,
+            affectedPopulation: disaster.affectedPopulation,
+            status: disaster.status,
+            createdAt: disaster.createdAt,
+        }));
+
+        res.json(disasterList);
+    } catch (error) {
+        console.error("Fetch disasters error:", error);
+        res.status(500).json({ message: "Failed to fetch disasters" });
+    }
+});
+
+// Get specific disaster details (admin only)
+router.get("/disaster/:disasterId", async (req, res) => {
+    try {
+        const { disasterId } = req.params;
+        const disaster = await Disaster.findOne({ disasterId });
+
+        if (!disaster) {
+            return res.status(404).json({ message: "Disaster not found" });
+        }
+
+        res.json({
+            disasterId: disaster.disasterId,
+            disasterName: disaster.disasterName,
+            location: disaster.location,
+            dateOccurred: disaster.dateOccurred,
+            disasterType: disaster.disasterType,
+            severity: disaster.severity,
+            description: disaster.description,
+            affectedPopulation: disaster.affectedPopulation,
+            status: disaster.status,
+            createdAt: disaster.createdAt,
+            updatedAt: disaster.updatedAt,
+        });
+    } catch (error) {
+        console.error("Fetch disaster error:", error);
+        res.status(500).json({ message: "Failed to fetch disaster details" });
+    }
+});
+
+// Update disaster (admin only)
+router.put("/disaster/:disasterId", async (req, res) => {
+    try {
+        const { disasterId } = req.params;
+        const updateData = req.body;
+
+        // Don't allow updating disasterId
+        delete updateData.disasterId;
+
+        const disaster = await Disaster.findOneAndUpdate(
+            { disasterId },
+            updateData,
+            { new: true, runValidators: true }
+        );
+
+        if (!disaster) {
+            return res.status(404).json({ message: "Disaster not found" });
+        }
+
+        res.json({
+            message: "Disaster updated successfully",
+            disaster: {
+                disasterId: disaster.disasterId,
+                disasterName: disaster.disasterName,
+                location: disaster.location,
+                dateOccurred: disaster.dateOccurred,
+                disasterType: disaster.disasterType,
+                severity: disaster.severity,
+                description: disaster.description,
+                affectedPopulation: disaster.affectedPopulation,
+                status: disaster.status,
+            },
+        });
+    } catch (error) {
+        console.error("Update disaster error:", error);
+        res.status(500).json({ message: "Failed to update disaster", error: error.message });
+    }
+});
+
+// Delete disaster (admin only)
+router.delete("/disaster/:disasterId", async (req, res) => {
+    try {
+        const { disasterId } = req.params;
+
+        const result = await Disaster.deleteOne({ disasterId });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ message: "Disaster not found" });
+        }
+
+        res.json({ message: "Disaster deleted successfully" });
+    } catch (error) {
+        console.error("Delete disaster error:", error);
+        res.status(500).json({ message: "Failed to delete disaster" });
     }
 });
 

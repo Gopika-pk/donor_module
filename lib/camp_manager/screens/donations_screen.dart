@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/camp_session.dart';
+import '../../config/api_config.dart';
 
 class DonationsScreen extends StatefulWidget {
   const DonationsScreen({super.key});
@@ -11,8 +12,8 @@ class DonationsScreen extends StatefulWidget {
 }
 
 class _DonationsScreenState extends State<DonationsScreen> {
-  // Use local network IP
-  final String _baseUrl = "http://10.49.2.38:5000/camp-request/donations";
+  // Use centralized API configuration
+  final String _baseUrl = "${ApiConfig.campRequest}/donations";
   String? _campId; // Load from session
   
   List<dynamic> donations = [];
@@ -111,7 +112,7 @@ class _DonationsScreenState extends State<DonationsScreen> {
   Future<void> _markAsNotReceived(String donationId) async {
     try {
       final response = await http.put(
-        Uri.parse("http://10.49.2.38:5000/camp-request/donations/$donationId/not-receive"),
+        Uri.parse(ApiConfig.donationNotReceive(donationId)),
         headers: {"Content-Type": "application/json"},
       );
 

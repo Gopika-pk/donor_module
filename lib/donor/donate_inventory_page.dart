@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/api_service.dart';
+import '../config/api_config.dart';
 
 class DonateInventoryPage extends StatefulWidget {
   const DonateInventoryPage({super.key});
@@ -75,7 +76,7 @@ class _DonateInventoryPageState extends State<DonateInventoryPage> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://10.49.2.38:5000/donor/donate-direct"),
+        Uri.parse(ApiConfig.donorDonateDirect),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "campId": selectedCampId,

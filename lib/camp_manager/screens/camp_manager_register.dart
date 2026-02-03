@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'camp_manager_login.dart';
+import '../../config/api_config.dart';
 
 class CampManagerRegister extends StatefulWidget {
   const CampManagerRegister({super.key});
@@ -40,7 +41,7 @@ class _CampManagerRegisterState extends State<CampManagerRegister> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://10.49.2.38:5000/api/camp-manager/register"),
+        Uri.parse(ApiConfig.campManagerRegister),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "campName": campName,

@@ -29,6 +29,8 @@ app.use("/inmates", require("./routes/inmateRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
 
 const PORT = 5000;
-app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
+const HOST = '0.0.0.0'; // Listen on all network interfaces
+app.listen(PORT, HOST, () => {
+  console.log(`Backend running on http://${HOST}:${PORT}`);
+  console.log(`Access from network devices using your local IP`);
 });

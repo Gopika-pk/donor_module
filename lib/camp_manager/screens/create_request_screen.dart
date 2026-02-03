@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/camp_session.dart';
+import '../../config/api_config.dart';
 
 class CreateRequestScreen extends StatefulWidget {
   const CreateRequestScreen({super.key});
@@ -50,7 +51,7 @@ class _CreateRequestScreenState extends State<CreateRequestScreen> {
     });
 
     try {
-      final url = Uri.parse("http://10.49.2.38:5000/camp-request");
+      final url = Uri.parse(ApiConfig.campRequest);
 
       final response = await http.post(
         url,

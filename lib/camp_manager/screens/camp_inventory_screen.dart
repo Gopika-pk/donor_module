@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/camp_session.dart';
+import '../../config/api_config.dart';
 
 class CampInventoryScreen extends StatefulWidget {
   const CampInventoryScreen({super.key});
@@ -11,8 +12,8 @@ class CampInventoryScreen extends StatefulWidget {
 }
 
 class _CampInventoryScreenState extends State<CampInventoryScreen> {
-  // Use local network IP
-  final String _baseUrl = "http://10.49.2.38:5000/inventory";
+  // Use centralized API configuration
+  final String _baseUrl = ApiConfig.inventory;
   String? _campId; // Load from session
 
   List<dynamic> inventory = [];

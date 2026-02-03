@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/camp_session.dart';
 import 'camp_dashboard.dart';
+import '../../config/api_config.dart';
 
 class CampManagerLogin extends StatefulWidget {
   const CampManagerLogin({super.key});
@@ -33,7 +34,7 @@ class _CampManagerLoginState extends State<CampManagerLogin> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://10.49.2.38:5000/api/camp-manager/login"),
+        Uri.parse(ApiConfig.campManagerLogin),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "email": email,

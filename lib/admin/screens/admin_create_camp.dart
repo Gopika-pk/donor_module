@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../config/api_config.dart';
 
 class AdminCreateCamp extends StatefulWidget {
   const AdminCreateCamp({super.key});
@@ -39,7 +40,7 @@ class _AdminCreateCampState extends State<AdminCreateCamp> {
 
     try {
       final response = await http.post(
-        Uri.parse("http://10.49.2.38:5000/api/admin/create-camp"),
+        Uri.parse(ApiConfig.adminCreateCamp),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "campName": campName,

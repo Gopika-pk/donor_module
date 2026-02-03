@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/camp_session.dart';
+import '../../config/api_config.dart';
 
 class InmatesScreen extends StatefulWidget {
   const InmatesScreen({super.key});
@@ -11,7 +12,7 @@ class InmatesScreen extends StatefulWidget {
 }
 
 class _InmatesScreenState extends State<InmatesScreen> {
-  final String _baseUrl = "http://10.49.2.38:5000/inmates";
+  final String _baseUrl = ApiConfig.inmates;
   String? _campId;
   
   List<dynamic> inmates = [];
@@ -421,8 +422,8 @@ class _AddInmateDialogState extends State<AddInmateDialog> {
 
     try {
       final url = widget.inmate == null
-          ? "http://10.49.2.38:5000/inmates/register"
-          : "http://10.49.2.38:5000/inmates/${widget.inmate!['_id']}";
+          ? "${ApiConfig.inmates}/register"
+          : ApiConfig.inmateById(widget.inmate!['_id']);
       
       final response = widget.inmate == null
           ? await http.post(
